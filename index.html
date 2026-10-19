@@ -129,6 +129,53 @@ aside.panel{min-width:0;background:var(--panel);border:1px solid var(--line);bor
 .mat{font:12px var(--f-mono);color:var(--muted)}
 .empty{color:var(--muted);font-size:13px}
 @media (prefers-reduced-motion:no-preference){.cell .pc{transition:transform .12s}.cell.sel .pc{transform:scale(1.08)}}
+
+/* Acciones, coordenadas internas y ayuda contextual */
+.actions{display:flex;gap:8px}
+.ico{display:none}
+.lbl{font-size:13px;color:var(--muted)}
+.controls{display:flex;gap:8px;align-items:center}
+.cell .cr,.cell .cf{display:none;position:absolute;z-index:3;font:600 9px/1 var(--f-mono);color:var(--coord);pointer-events:none;opacity:.9}
+.cell .cr{left:2px;top:2px}.cell .cf{right:2px;bottom:2px}
+.cell.d .cr,.cell.d .cf{color:var(--sq-l)}.cell.l .cr,.cell.l .cf{color:var(--sq-d)}
+.board,.cell{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;-webkit-user-select:none}
+.hint{display:none}
+.btn.confirm{background:var(--danger);border-color:var(--danger);color:#fff}
+
+@media (max-width:720px){
+  .app{gap:14px;padding-block:8px calc(78px + env(safe-area-inset-bottom,0px))}
+  .main{gap:8px}
+  header.bar{flex-wrap:nowrap;gap:10px}
+  h1{font-size:21px;white-space:nowrap}
+  h1 small,.lbl,.long{display:none}
+  .controls{flex:1;min-width:0;justify-content:flex-end}
+  .controls select{width:100%;max-width:230px;min-height:40px;font-size:14px}
+  .actions{position:fixed;z-index:20;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+    background:var(--panel);border-top:1px solid var(--line);box-shadow:0 -4px 18px rgba(0,0,0,.12);
+    padding:8px max(16px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  .actions .btn{min-height:50px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:13px;padding:4px}
+  .ico{display:block;font-size:19px;line-height:1}
+  .status{padding:6px 10px;gap:4px 10px;min-height:52px}
+  .msg{flex-basis:100%;font-size:13.5px;line-height:1.35}
+  .bw{width:100%;display:block}
+  .ranks,.files{display:none}
+  .board{border-width:1px}
+  .cell .cr,.cell .cf{display:block}
+  .cell .pc{width:94%;height:94%}
+  .cell.sel{box-shadow:inset 0 0 0 2.5px var(--accent)}
+  .overlay{inset:0}
+  .promo{grid-template-columns:repeat(4,minmax(0,68px))}
+  .promo button{min-height:64px}
+  .hint{display:block;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+  .hint:empty{display:none}
+  .hint h3{margin:0 0 4px;display:flex;align-items:center;gap:6px;font-family:var(--f-display);font-size:17px}
+  .hint h3 svg{width:24px;height:24px}
+  .hint ul{margin:0;padding-left:18px;font-size:13.5px}
+  .hint li{margin:0 0 2px}
+  .tab{padding:12px 6px}
+  .pane{padding:12px}
+}
+@media (max-width:360px){h1{font-size:18px}}
 </style>
 
 </head>
@@ -189,17 +236,19 @@ aside.panel{min-width:0;background:var(--panel);border:1px solid var(--line);bor
     <header class="bar">
       <h1>Asedio 12×12 <small>ajedrez de asedio · 72 fichas</small></h1>
       <div class="controls">
-        <label for="mode" class="sr" style="font-size:13px;color:var(--muted)">Rival</label>
-        <select id="mode">
+        <label for="mode" class="lbl">Rival</label>
+        <select id="mode" aria-label="Rival">
           <option value="cpu-b">Tú (blancas) contra la CPU</option>
           <option value="cpu-w">Tú (negras) contra la CPU</option>
           <option value="2p">Dos jugadores, mismo equipo</option>
           <option value="cpu-cpu">CPU contra CPU (demo)</option>
         </select>
-        <button class="btn" id="undo" type="button">Deshacer</button>
-        <button class="btn" id="flip" type="button">Girar tablero</button>
-        <button class="btn primary" id="new" type="button">Nueva partida</button>
       </div>
+      <nav class="actions" aria-label="Acciones de la partida">
+        <button class="btn" id="undo" type="button"><span class="ico" aria-hidden="true">↶</span>Deshacer</button>
+        <button class="btn" id="flip" type="button"><span class="ico" aria-hidden="true">⇅</span>Girar<span class="long"> tablero</span></button>
+        <button class="btn primary" id="new" type="button"><span class="ico" aria-hidden="true">＋</span><span id="newtxt">Nueva<span class="long"> partida</span></span></button>
+      </nav>
     </header>
     <div class="status" role="status" aria-live="polite">
       <div class="turn"><span class="dot" id="tdot"></span><span id="ttxt">Turno de blancas</span></div>
@@ -212,6 +261,7 @@ aside.panel{min-width:0;background:var(--panel);border:1px solid var(--line);bor
       <div class="files" id="files"></div>
       <div class="overlay" id="ov" hidden><div class="dialog" id="dlg"></div></div>
     </div>
+    <section class="hint" id="hint" aria-live="polite"></section>
   </main>
 
   <aside class="panel" aria-label="Manual de fichas">
@@ -463,6 +513,8 @@ if(typeof module==='object'&&module.exports)module.exports=Engine;
 <script>
 (function(){
 var E=Engine,NAME=E.NAME,NEW={CAT:1,RAM:1,ARC:1,PIK:1};
+var TOUCH=window.matchMedia&&matchMedia('(hover: none)').matches;
+var MOBILE=function(){return window.matchMedia&&matchMedia('(max-width:720px)').matches;};
 var $=function(id){return document.getElementById(id);};
 var G={mode:'cpu-b',flip:false};
 var cpuTimer=null;
@@ -474,7 +526,7 @@ document.head.appendChild(styleTok);
 
 function fresh(){
   G.s=E.newGame();G.hist=[];G.log=[];G.sel=null;G.targets=null;G.last=null;G.capBy={w:[],b:[]};
-  G.status=E.status(G.s);G.msg='Mueven las blancas. Pulsa una ficha para ver adónde puede ir; su ficha del manual se resalta a la derecha.';
+  G.status=E.status(G.s);G.pend=null;G.msg='Mueven las blancas. Toca una ficha para ver adónde puede ir y cómo se mueve.';
 }
 function cpuColor(){return G.mode==='cpu-b'?'b':G.mode==='cpu-w'?'w':G.mode==='cpu-cpu'?'any':null;}
 function isCpuTurn(){var c=cpuColor();return !G.status.over&&(c==='any'||c===G.s.turn);}
@@ -524,7 +576,7 @@ function scheduleCpu(){
 function select(i){
   var p=G.s.b[i];
   if(!p||p.c!==G.s.turn){G.sel=null;G.targets=null;render();return;}
-  G.sel=i;G.targets={};
+  G.sel=i;G.targets={};G.pend=null;
   E.legal(G.s,i).forEach(function(m){G.targets[m.to]=m;});
   var n=Object.keys(G.targets).length;
   G.msg='<b>'+NAME[p.t]+' en '+E.sq(G.s,i)+'</b>: '+(n?n+' jugada'+(n>1?'s':'')+' posible'+(n>1?'s':'')+'.':'sin jugadas legales ahora mismo.')+
@@ -538,9 +590,17 @@ function onCell(i){
   if(G.status.over||isCpuTurn())return;
   if(G.sel!=null&&G.targets&&G.targets[i]){
     var m=G.targets[i];
+    // En pantallas táctiles no hay "pasar el cursor": la embestida que arrolla fichas pide un segundo toque
+    if(TOUCH&&m.kind==='charge'&&G.pend!==i){
+      G.pend=i;
+      G.msg='<b>Ariete hasta '+E.sq(G.s,i)+'</b>: arrollará '+m.caps.map(function(c){return NAME[G.s.b[c].t].toLowerCase();}).join(', ')+'. Toca otra vez la misma casilla para confirmar.';
+      render();return;
+    }
+    G.pend=null;
     if(m.promo){askPromo(m);return;}
     doMove(m);return;
   }
+  G.pend=null;
   if(G.sel===i){G.sel=null;G.targets=null;render();return;}
   select(i);
 }
@@ -557,7 +617,7 @@ function closeDialog(){$('ov').hidden=true;G.sel=null;G.targets=null;render();}
 function render(){
   var s=G.s,st=G.status,html='',doomKing=-1;
   if(st.check)doomKing=E.kingIdx(s,s.turn);
-  var Z=E.SIZE,Zl=Z-1;
+  var Z=E.SIZE,Zl=Z-1,pendCaps=G.pend!=null&&G.targets&&G.targets[G.pend]?G.targets[G.pend].caps:null;
   for(var r=0;r<Z;r++)for(var c=0;c<Z;c++){
     var x=G.flip?Zl-c:c,y=G.flip?r:Zl-r,i=y*Z+x,p=s.b[i];
     var cls='cell '+((x+y)%2?'l':'d');
@@ -566,11 +626,15 @@ function render(){
     if(G.sel===i)cls+=' sel';
     var m=G.targets&&G.targets[i];
     if(m)cls+=m.kind==='shot'?' shot':m.caps.length?' cap':' mv';
+    if(pendCaps&&pendCaps.indexOf(i)>=0)cls+=' doom';
     var inner='';
-    if(p){inner=pieceSVG(p);if(p.t==='CAT'&&nextActPly(p)<p.r)inner+='<span class="badge" title="Recargando">↻</span>';}
+    if(c===0)inner+='<span class="cr">'+(y+1)+'</span>';
+    if(r===Zl)inner+='<span class="cf">'+String.fromCharCode(97+x)+'</span>';
+    if(p){inner+=pieceSVG(p);if(p.t==='CAT'&&nextActPly(p)<p.r)inner+='<span class="badge" title="Recargando">↻</span>';}
     html+='<div class="'+cls+'" data-i="'+i+'" role="gridcell" aria-label="'+E.sq(s,i)+(p?' '+NAME[p.t]+' '+(p.c==='w'?'blanco':'negro'):'')+'">'+inner+'</div>';
   }
   $('board').innerHTML=html;
+  renderHint();
   var rk='',fl='';
   for(var k=0;k<Z;k++){rk+='<span>'+(G.flip?k+1:Z-k)+'</span>';fl+='<span>'+String.fromCharCode(97+(G.flip?Zl-k:k))+'</span>';}
   $('ranks').innerHTML=rk;$('files').innerHTML=fl;
@@ -653,10 +717,16 @@ function buildCards(){
     vt+='<tr><td>'+NAME[t]+'</td><td>'+E.VAL[t]+'</td><td>'+n+'</td></tr>';});
   $('vtab').innerHTML=vt;
 }
+function renderHint(){
+  var p=G.sel!=null&&G.s.b[G.sel],el=$('hint');
+  if(!p){el.innerHTML='';return;}
+  var cd=CARDS.filter(function(c){return c.t===p.t;})[0];
+  el.innerHTML='<h3>'+pieceSVG({t:p.t,c:p.c})+NAME[p.t]+'</h3><ul>'+cd.li.map(function(l){return '<li>'+l+'</li>';}).join('')+'</ul>';
+}
 function highlightCard(t){
   document.querySelectorAll('.card.hl').forEach(function(c){c.classList.remove('hl');});
   var c=$('card-'+t);if(!c)return;c.classList.add('hl');
-  if(!$('p-pieces').hidden){var pane=$('p-pieces');pane.scrollTo({top:c.offsetTop-pane.offsetTop-8,behavior:'smooth'});}
+  if(!$('p-pieces').hidden&&!MOBILE()){var pane=$('p-pieces');pane.scrollTo({top:c.offsetTop-pane.offsetTop-8,behavior:'smooth'});}
 }
 
 /* ---------- Eventos ---------- */
@@ -667,7 +737,16 @@ $('board').addEventListener('mouseover',function(e){
   if(m&&m.caps.length)m.caps.forEach(function(i){var el=$('board').querySelector('[data-i="'+i+'"]');if(el)el.classList.add('doom');});
 });
 $('board').addEventListener('mouseleave',function(){document.querySelectorAll('#board .doom').forEach(function(d){d.classList.remove('doom');});});
-$('new').onclick=function(){clearTimeout(cpuTimer);$('ov').hidden=true;fresh();render();save();scheduleCpu();};
+var newArm=null;
+$('new').onclick=function(){
+  var btn=$('new');
+  if(G.log.length&&!G.status.over&&!newArm){
+    btn.classList.add('confirm');$('newtxt').textContent='¿Seguro?';
+    newArm=setTimeout(function(){newArm=null;btn.classList.remove('confirm');$('newtxt').innerHTML='Nueva<span class="long"> partida</span>';},3000);
+    return;
+  }
+  clearTimeout(newArm);newArm=null;btn.classList.remove('confirm');$('newtxt').innerHTML='Nueva<span class="long"> partida</span>';
+  clearTimeout(cpuTimer);$('ov').hidden=true;fresh();render();save();scheduleCpu();};
 $('undo').onclick=function(){
   clearTimeout(cpuTimer);$('ov').hidden=true;
   var cpu=cpuColor(),human=cpu==='w'?'b':cpu==='b'?'w':null,undoneHuman=false;
